@@ -1,3 +1,102 @@
+const API_URL = "http://localhost:5000/api/products";
+
+// ===============================
+// LOAD PRODUCTS FROM MONGODB
+// ===============================
+
+async function loadProductsFromAPI() {
+    try {
+        const response = await fetch(API_URL);
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch products");
+        }
+
+        const products = await response.json();
+
+        console.log("Products from MongoDB:", products);
+
+        const menuContainer =
+            document.getElementById("menuContainer");
+
+        if (!menuContainer) {
+            console.error("menuContainer not found.");
+            return;
+        }
+
+        // Clear existing static products
+        menuContainer.innerHTML = "";
+
+        products.forEach(function (product) {
+
+            const productCard =
+                document.createElement("div");
+
+            productCard.className =
+                "menu-item col-md-4 d-flex";
+
+            productCard.dataset.name =
+                product.name.toLowerCase();
+
+            productCard.dataset.price =
+                product.price;
+
+            productCard.dataset.productId =
+                product._id;
+
+            productCard.innerHTML = `
+                <div class="card w-100 h-100 text-center border-2 border-warning">
+
+                    <img
+                        src="./${product.image}"
+                        class="card-img-top"
+                        alt="${product.name}"
+                        onerror="this.src='https://via.placeholder.com/300x200?text=Food'"
+                    >
+
+                    <div class="card-body d-flex flex-column text-center">
+
+                        <h4 class="card-title">
+                            ${product.name}
+                        </h4>
+
+                        <p class="card-text">
+                            ${product.description || ""}
+                        </p>
+
+                        <h5 class="text-danger mt-auto">
+                            ₹${Number(product.price).toFixed(2)}
+                        </h5>
+
+                        <button
+                            type="button"
+                            class="btn btn-warning mt-3 order-btn"
+                        >
+                            Order now
+                            <i class="bi bi-cart3"></i>
+                        </button>
+
+                    </div>
+
+                </div>
+            `;
+
+            menuContainer.appendChild(productCard);
+        });
+
+        console.log(
+            `✅ ${products.length} products loaded from MongoDB.`
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Error loading products:",
+            error
+        );
+
+    }
+}
 // ===============================
 // SEARCH
 // ===============================
@@ -130,26 +229,32 @@ function updateCartCount() {
 }
 
 
-// Add click events to Order buttons
-const orderButtons =
-    document.querySelectorAll(".order-btn");
+// ===============================
+// ORDER BUTTONS
+// ===============================
 
-orderButtons.forEach(function (button) {
+const menuContainer = document.getElementById("menuContainer");
 
-    button.addEventListener("click", function (event) {
+if (menuContainer) {
 
+    menuContainer.addEventListener("click", function (event) {
+
+        const button = event.target.closest(".order-btn");
+
+        if (!button) return;
+
+        // Stop links such as href="#" from jumping to the carousel
         event.preventDefault();
 
-        const product =
-            getProductFromCard(button);
+        const product = getProductFromCard(button);
 
         if (product) {
             addToCart(product);
         }
+
     });
 
-});
-
+}
 
 // ===============================
 // CART WINDOW
@@ -423,3 +528,5 @@ function createCartButton() {
 createCartButton();
 
 updateCartCount();
+
+loadProductsFromAPI();

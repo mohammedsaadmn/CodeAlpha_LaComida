@@ -198,41 +198,6 @@ if (upiRadio) {
 }
 
 
-// ===============================
-// OPEN UPI APP
-// ===============================
-
-if (upiPayButton) {
-
-    upiPayButton.addEventListener(
-        "click",
-        function () {
-
-            calculateTotal();
-
-            const merchantUPI =
-                "YOUR_REAL_UPI_ID";
-
-            const merchantName =
-                "La Comida";
-
-            const amount =
-                currentTotal.toFixed(2);
-
-            const transactionRef =
-                "ORD" + Date.now();
-
-            const upiURL =
-                `upi://pay?pa=${encodeURIComponent(merchantUPI)}` +
-                `&pn=${encodeURIComponent(merchantName)}` +
-                `&tr=${transactionRef}` +
-                `&am=${amount}` +
-                `&cu=INR`;
-
-            window.location.href = upiURL;
-        }
-    );
-}
 
 // ===============================
 // PLACE ORDER
@@ -240,38 +205,29 @@ if (upiPayButton) {
 
 document
     .getElementById("checkoutForm")
-    .addEventListener("submit", function (event) {
+    .addEventListener("submit", async function (event) {
 
         event.preventDefault();
-
 
         // ===============================
         // CUSTOMER DETAILS
         // ===============================
 
         const name =
-            document
-                .getElementById("customerName")
-                .value
-                .trim();
+            document.getElementById("customerName")
+                .value.trim();
 
         const phone =
-            document
-                .getElementById("phone")
-                .value
-                .trim();
+            document.getElementById("phone")
+                .value.trim();
 
         const address =
-            document
-                .getElementById("address")
-                .value
-                .trim();
+            document.getElementById("address")
+                .value.trim();
 
         const city =
-            document
-                .getElementById("city")
-                .value
-                .trim();
+            document.getElementById("city")
+                .value.trim();
 
 
         // ===============================
@@ -284,14 +240,11 @@ document
             );
 
         if (!selectedPayment) {
-
             alert("Please select a payment method.");
-
             return;
         }
 
-        const payment =
-            selectedPayment.value;
+        const payment = selectedPayment.value;
 
 
         // ===============================
@@ -314,7 +267,9 @@ document
 
         const subtotal = cart.reduce(
             (sum, item) =>
-                sum + (item.price * item.quantity),
+                sum +
+                (Number(item.price) *
+                 Number(item.quantity)),
             0
         );
 
@@ -324,135 +279,189 @@ document
             subtotal + deliveryFee;
 
 
-       let transactionId = "";
-let paymentStatus = "Pending";
-
-// ================================
-// PAYMENT PROCESS
-// ================================
-
-if (payment === "UPI") {
-    // UPI payment is initiated through the QR code / UPI app.
-    // We do NOT mark it as Paid automatically.
-    paymentStatus = "Awaiting Payment Confirmation";
-}
-
-// COD
-if (payment === "Cash on Delivery") {
-    paymentStatus = "Pending";
-}
-
-// GET LOGGED-IN USER
-const loggedInUser =
-    JSON.parse(localStorage.getItem("loggedInUser"));
-
-if (!loggedInUser) {
-    alert("Please login before placing an order.");
-    window.location.href = "login.html";
-    return;
-}
         // ===============================
-        // CREATE ORDER
+        // PAYMENT STATUS
         // ===============================
 
-       const order = {
-    orderId: "ORD" + Date.now(),
+        let transactionId = "";
 
-    userId: loggedInUser.id,
-    userName: loggedInUser.name,
-    userEmail: loggedInUser.email,
+        let paymentStatus = "Pending";
 
-    customerName: name,
+        if (payment === "UPI") {
+            paymentStatus =
+                "Awaiting Payment Confirmation";
+        }
 
-            phone:
-                phone,
+        if (payment === "Cash on Delivery") {
+            paymentStatus = "Pending";
+        }
 
-            address:
-                address,
 
-            city:
-                city,
+        // ===============================
+        // GET LOGGED-IN USER
+        // ===============================
 
-            paymentMethod:
-                payment,
+        const loggedInUser =
+            JSON.parse(
+                localStorage.getItem("loggedInUser")
+            );
 
-            paymentStatus:
-                paymentStatus,
+        if (!loggedInUser) {
 
-            transactionId:
-                transactionId,
+            alert(
+                "Please login before placing an order."
+            );
 
-            items:
-                cart,
+            window.location.href =
+                "login.html";
 
-            subtotal:
-                subtotal,
+            return;
+        }
 
-            deliveryFee:
-                deliveryFee,
 
-            total:
-                total,
+        // ===============================
+        // ORDER DATA
+        // ===============================
 
-            orderStatus:
-                "Order Placed",
+        const userIdToSend = loggedInUser.id || loggedInUser._id;
+        console.log("Logged-in MongoDB user:", loggedInUser);
+        console.log("User ID being sent from checkout:", userIdToSend);
 
-            orderDate:
-                new Date().toLocaleString()
+        const orderData = {
+
+            user: userIdToSend,
+
+            customerName: name,
+
+            phone: phone,
+
+            address: address,
+
+            city: city,
+
+            items: cart.map(function (item) {
+
+                return {
+
+                    name: item.name,
+
+                    price: Number(item.price),
+
+                    quantity: Number(item.quantity),
+
+                    image: item.image || "",
+
+                    size: item.size || ""
+
+                };
+
+            }),
+
+            subtotal: subtotal,
+
+            deliveryFee: deliveryFee,
+
+            total: total,
+
+            paymentMethod: payment,
+
+            paymentStatus: paymentStatus,
+
+            transactionId: transactionId,
+
+            orderStatus: "Order Placed"
+
         };
 
 
         // ===============================
-        // GET PREVIOUS ORDERS
+        // SEND ORDER TO EXPRESS API
         // ===============================
 
-        const orders =
-            JSON.parse(
-                localStorage.getItem("orders")
-            ) || [];
+        try {
+
+            const response = await fetch(
+                "http://localhost:5000/api/orders",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify(orderData)
+                }
+            );
 
 
-        // ===============================
-        // SAVE ORDER
-        // ===============================
-
-        orders.push(order);
-
-        localStorage.setItem(
-            "orders",
-            JSON.stringify(orders)
-        );
+            const result =
+                await response.json();
 
 
-        // ===============================
-        // CLEAR CART
-        // ===============================
+            // ===============================
+            // CHECK RESPONSE
+            // ===============================
 
-        localStorage.removeItem("cart");
+            if (!response.ok) {
 
+                throw new Error(
+                    result.message ||
+                    "Failed to create order"
+                );
 
-        // ===============================
-        // SUCCESS MESSAGE
-        // ===============================
-
-        alert(
-            `🎉 Order placed successfully!\n\n` +
-            `Order ID: ${order.orderId}\n` +
-            `Payment: ${payment}\n` +
-            `Payment Status: ${paymentStatus}\n` +
-            `Total: ₹${total.toFixed(2)}`
-        );
+            }
 
 
-        // ===============================
-        // GO TO ORDERS
-        // ===============================
+            console.log(
+                "Order saved to MongoDB:",
+                result
+            );
 
-        window.location.href =
-            "orders.html";
+
+            // ===============================
+            // CLEAR CART
+            // ===============================
+
+            localStorage.removeItem("cart");
+
+
+            // ===============================
+            // SUCCESS MESSAGE
+            // ===============================
+
+            alert(
+                `🎉 Order placed successfully!\n\n` +
+                `Payment: ${payment}\n` +
+                `Payment Status: ${paymentStatus}\n` +
+                `Total: ₹${total.toFixed(2)}`
+            );
+
+
+            // ===============================
+            // GO TO ORDERS PAGE
+            // ===============================
+
+            window.location.href =
+                "orders.html";
+
+
+        } catch (error) {
+
+            console.error(
+                "Order creation error:",
+                error
+            );
+
+            alert(
+                "❌ Unable to place the order.\n\n" +
+                "Please make sure the backend server is running."
+            );
+
+        }
 
     });
-
 // ===============================
 // PAY WITH UPI BUTTON
 // ===============================

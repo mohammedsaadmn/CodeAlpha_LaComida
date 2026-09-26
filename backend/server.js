@@ -2,8 +2,11 @@ const express = require("express");
 const mongoose = require("mongoose");
 require("dotenv").config();
 
+
 const cors = require("cors");
-const authRoutes = require("./routes/authroutes");
+const authRoutes = require("./routes/authRoutes");
+const productRoutes = require("./routes/ProductRoutes");
+const orderRoutes = require("./routes/orderRoutes");
 
 const app = express();
 
@@ -38,7 +41,8 @@ mongoose
 // =====================================
 
 app.use("/api/auth", authRoutes);
-
+app.use("/api/products", productRoutes);
+app.use("/api/orders", orderRoutes);
 
 // =====================================
 // TEST ROUTE

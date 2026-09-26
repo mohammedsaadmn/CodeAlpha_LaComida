@@ -6,7 +6,7 @@ const registerForm = document.getElementById("registerForm");
 
 if (registerForm) {
 
-    registerForm.addEventListener("submit", function (event) {
+    registerForm.addEventListener("submit", async function (event) {
 
         event.preventDefault();
 
@@ -34,62 +34,52 @@ if (registerForm) {
         }
 
 
-        // GET EXISTING USERS
+        try {
 
-        const users =
-            JSON.parse(localStorage.getItem("users")) || [];
+            const response = await fetch("http://localhost:5000/api/auth/register", {
 
+                method: "POST",
 
-        // CHECK EXISTING EMAIL
+                headers: {
+                    "Content-Type": "application/json"
+                },
 
-        const existingUser =
-            users.find(function (user) {
-
-                return user.email === email;
+                body: JSON.stringify({
+                    name: name,
+                    email: email,
+                    password: password
+                })
 
             });
 
 
-        if (existingUser) {
+            const result = await response.json();
 
-            alert("An account with this email already exists.");
 
-            return;
+            if (!response.ok) {
+
+                alert(`❌ ${result.message || "Registration failed."}`);
+
+                return;
+            }
+
+
+            console.log("Registered MongoDB user:", result.user);
+
+            alert("🎉 Account created successfully!");
+
+
+            // GO TO LOGIN
+
+            window.location.href = "login.html";
+
+        } catch (error) {
+
+            console.error("Registration error:", error);
+
+            alert("❌ Unable to connect to backend server. Please make sure the server is running.");
+
         }
-
-
-        // CREATE USER
-
-        const newUser = {
-
-            id: Date.now(),
-
-            name: name,
-
-            email: email,
-
-            password: password
-
-        };
-
-
-        users.push(newUser);
-
-
-        // SAVE USERS
-
-        localStorage.setItem(
-            "users",
-            JSON.stringify(users)
-        );
-
-
-        alert("🎉 Account created successfully!");
-
-
-        // GO TO LOGIN
-
-        window.location.href = "login.html";
 
     });
 
@@ -106,7 +96,7 @@ const loginForm = document.getElementById("loginForm");
 
 if (loginForm) {
 
-    loginForm.addEventListener("submit", function (event) {
+    loginForm.addEventListener("submit", async function (event) {
 
         event.preventDefault();
 
@@ -118,49 +108,63 @@ if (loginForm) {
             document.getElementById("loginPassword").value;
 
 
-        // GET USERS
+        try {
 
-        const users =
-            JSON.parse(localStorage.getItem("users")) || [];
+            const response = await fetch("http://localhost:5000/api/auth/login", {
 
+                method: "POST",
 
-        // FIND USER
+                headers: {
+                    "Content-Type": "application/json"
+                },
 
-        const user =
-            users.find(function (user) {
-
-                return (
-                    user.email === email &&
-                    user.password === password
-                );
+                body: JSON.stringify({
+                    email: email,
+                    password: password
+                })
 
             });
 
 
-        if (!user) {
+            const result = await response.json();
 
-            alert("❌ Invalid email or password.");
 
-            return;
+            if (!response.ok) {
+
+                alert(`❌ ${result.message || "Invalid email or password."}`);
+
+                return;
+            }
+
+
+            console.log("Logged-in MongoDB user:", result.user);
+            console.log("Logged-in MongoDB user ID:", result.user.id || result.user._id);
+
+
+            // SAVE LOGGED-IN USER
+
+            localStorage.setItem(
+                "loggedInUser",
+                JSON.stringify(result.user)
+            );
+
+
+            alert(
+                `🎉 Welcome ${result.user.name}!`
+            );
+
+
+            // GO HOME
+
+            window.location.href = "index.html";
+
+        } catch (error) {
+
+            console.error("Login error:", error);
+
+            alert("❌ Unable to connect to backend server. Please make sure the server is running.");
+
         }
-
-
-        // SAVE LOGGED-IN USER
-
-        localStorage.setItem(
-            "loggedInUser",
-            JSON.stringify(user)
-        );
-
-
-        alert(
-            `🎉 Welcome ${user.name}!`
-        );
-
-
-        // GO HOME
-
-        window.location.href = "index.html";
 
     });
 
@@ -201,4 +205,5 @@ if (logoutButton) {
     });
 
 }
+
 

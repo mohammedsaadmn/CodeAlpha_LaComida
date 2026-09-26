@@ -555,22 +555,7 @@
  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="./checkout.js"></script>
 
-<script>
-    const codRadio = document.getElementById("cod");
-    const upiRadio = document.getElementById("upi");
-    const upiPaymentBox = document.getElementById("upiPaymentBox");
 
-    function updatePaymentMethod() {
-        if (upiRadio.checked) {
-            upiPaymentBox.classList.remove("d-none");
-        } else {
-            upiPaymentBox.classList.add("d-none");
-        }
-    }
-
-    codRadio.addEventListener("change", updatePaymentMethod);
-    upiRadio.addEventListener("change", updatePaymentMethod);
-</script>
             
 </body>
 </html>

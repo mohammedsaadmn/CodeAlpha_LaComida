@@ -8,107 +8,247 @@ const loggedInUser =
 const ordersContainer =
     document.getElementById("ordersContainer");
 
+const API_URL =
+    "http://localhost:5000/api/orders";
+
 
 // ===============================
 // CHECK LOGIN
 // ===============================
 
 if (!loggedInUser) {
-
     alert("Please login to view your orders.");
-
     window.location.href = "login.html";
-
 }
 
 
 // ===============================
-// LOAD USER ORDERS
+// LOAD ORDERS FROM MONGODB
 // ===============================
 
-const allOrders =
-    JSON.parse(localStorage.getItem("orders")) || [];
+async function loadOrders() {
+
+    try {
+
+        const response = await fetch(API_URL);
+
+        if (!response.ok) {
+            throw new Error("Failed to load orders");
+        }
+
+        const allOrders = await response.json();
+
+        console.log("Orders from MongoDB:", allOrders);
 
 
-// Only show orders belonging to the logged-in user
-const orders = allOrders.filter(function (order) {
+        // ===============================
+        // FILTER USER ORDERS
+        // ===============================
 
-    return order.userId === loggedInUser.id;
+        const userId =
+            loggedInUser.id ||
+            loggedInUser._id;
 
-});
+        console.log("Filtering orders for logged-in MongoDB user ID:", userId);
 
+        const orders = allOrders.filter(function (order) {
 
-// ===============================
-// CHECK ORDERS
-// ===============================
+            const orderUserId =
+                typeof order.user === "object"
+                    ? order.user?._id
+                    : order.user;
 
-if (orders.length === 0) {
+            return (
+                orderUserId &&
+                String(orderUserId) === String(userId)
+            );
 
-    ordersContainer.innerHTML = `
-
-        <div class="empty-orders">
-
-            <h2>📦 No orders yet</h2>
-
-            <p class="text-muted">
-                You haven't placed any orders yet.
-            </p>
-
-            <a
-                href="index.html"
-                class="back-btn"
-            >
-                🍔 Browse Menu
-            </a>
-
-        </div>
-
-    `;
-
-}
+        });
 
 
-// ===============================
-// DISPLAY ORDERS
-// ===============================
+        // ===============================
+        // CHECK ORDERS
+        // ===============================
 
-else {
+        if (orders.length === 0) {
 
-    // Show newest order first
-    const reversedOrders = [...orders].reverse();
+            ordersContainer.innerHTML = `
+                <div class="empty-orders">
 
-    reversedOrders.forEach(function (order) {
+                    <h2>📦 No orders yet</h2>
 
-        let itemsHTML = "";
+                    <p class="text-muted">
+                        You haven't placed any orders yet.
+                    </p>
 
-        order.items.forEach(function (item) {
+                    <a
+                        href="index.html"
+                        class="back-btn"
+                    >
+                        🍔 Browse Menu
+                    </a>
 
-            itemsHTML += `
+                </div>
+            `;
 
-                <div class="order-item">
+            return;
+        }
 
-                    <div class="d-flex justify-content-between">
 
-                        <strong>
-                            ${item.name}
-                        </strong>
+        // ===============================
+        // DISPLAY NEWEST ORDER FIRST
+        // ===============================
 
-                        <strong>
-                            ₹${(
-                                item.price *
-                                item.quantity
-                            ).toFixed(2)}
-                        </strong>
+        const reversedOrders =
+            [...orders].reverse();
+
+
+        ordersContainer.innerHTML = "";
+
+
+        reversedOrders.forEach(function (order) {
+
+            let itemsHTML = "";
+
+
+            // ===============================
+            // ORDER ITEMS
+            // ===============================
+
+            order.items.forEach(function (item) {
+
+                const itemTotal =
+                    Number(item.price) *
+                    Number(item.quantity);
+
+
+                itemsHTML += `
+                    <div class="order-item">
+
+                        <div class="d-flex justify-content-between">
+
+                            <strong>
+                                ${item.name}
+                            </strong>
+
+                            <strong>
+                                ₹${itemTotal.toFixed(2)}
+                            </strong>
+
+                        </div>
+
+                        <small class="text-muted">
+
+                            ₹${Number(item.price).toFixed(2)}
+                            ×
+                            ${item.quantity}
+
+                            ${item.size
+                                ? ` (${item.size})`
+                                : ""}
+
+                        </small>
+
+                    </div>
+                `;
+            });
+
+
+            // ===============================
+            // ORDER CARD
+            // ===============================
+
+            const orderDate =
+                order.orderDate ||
+                order.createdAt;
+
+
+            const formattedDate =
+                orderDate
+                    ? new Date(orderDate).toLocaleString()
+                    : "Date unavailable";
+
+
+            ordersContainer.innerHTML += `
+
+                <div class="order-card">
+
+                    <div class="order-header">
+
+                        <div>
+
+                            <h4 class="mb-1">
+                                Order #${order._id}
+                            </h4>
+
+                            <div class="order-id">
+                                ${formattedDate}
+                            </div>
+
+                        </div>
+
+
+                        <span class="status">
+
+                            🟡 ${order.orderStatus || "Order Placed"}
+
+                        </span>
 
                     </div>
 
-                    <small class="text-muted">
 
-                        ₹${item.price.toFixed(2)}
-                        ×
-                        ${item.quantity}
+                    <h5>
+                        🛍️ Items
+                    </h5>
 
-                    </small>
+
+                    ${itemsHTML}
+
+
+                    <div class="mt-3">
+
+                        <p class="mb-1">
+
+                            <strong>
+                                Payment:
+                            </strong>
+
+                            ${order.paymentMethod}
+
+                        </p>
+
+
+                        <p class="mb-1">
+
+                            <strong>
+                                Payment Status:
+                            </strong>
+
+                            ${order.paymentStatus || "Pending"}
+
+                        </p>
+
+
+                        <p class="mb-1">
+
+                            <strong>
+                                Delivery:
+                            </strong>
+
+                            ${order.address},
+                            ${order.city}
+
+                        </p>
+
+                    </div>
+
+
+                    <div class="total">
+
+                        Total:
+                        ₹${Number(order.total).toFixed(2)}
+
+                    </div>
 
                 </div>
 
@@ -117,71 +257,45 @@ else {
         });
 
 
-        ordersContainer.innerHTML += `
+    } catch (error) {
 
-            <div class="order-card">
-
-                <div class="order-header">
-
-                    <div>
-
-                        <h4 class="mb-1">
-                            Order #${order.orderId}
-                        </h4>
-
-                        <div class="order-id">
-                            ${order.orderDate}
-                        </div>
-
-                    </div>
-
-                    <span class="status">
-                        🟡 Order Placed
-                    </span>
-
-                </div>
+        console.error(
+            "Error loading orders:",
+            error
+        );
 
 
-                <h5>
-                    🛍️ Items
-                </h5>
+        ordersContainer.innerHTML = `
 
-                ${itemsHTML}
+            <div class="empty-orders">
 
+                <h2>⚠️ Unable to load orders</h2>
 
-                <div class="mt-3">
+                <p class="text-muted">
 
-                    <p class="mb-1">
-                        <strong>
-                            Payment:
-                        </strong>
+                    Please make sure the backend server
+                    is running.
 
-                        ${order.paymentMethod}
-                    </p>
+                </p>
 
-                    <p class="mb-1">
-                        <strong>
-                            Delivery:
-                        </strong>
-
-                        ${order.address},
-                        ${order.city}
-                    </p>
-
-                </div>
-
-
-                <div class="total">
-
-                    Total:
-                    ₹${order.total.toFixed(2)}
-
-                </div>
+                <button
+                    class="back-btn"
+                    onclick="location.reload()"
+                >
+                    🔄 Try Again
+                </button>
 
             </div>
 
         `;
 
-    });
+    }
 
 }
+
+
+// ===============================
+// START
+// ===============================
+
+loadOrders();
